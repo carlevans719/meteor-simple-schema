@@ -7,6 +7,22 @@
 function doTypeChecks(def, keyValue, op) {
   var expectedType = def.type;
 
+	// Deal with multiple allowed types
+	if (expectedType instanceof Array && expectedType.length > 1) {
+		var typeError = "";
+		var i = 0;
+		var newDef = _.extend(def, {});
+
+		// Find the first type that matches
+		while (i < expectedType.length && typeError !== undefined) {
+			newDef.type = expectedType[i];
+			console.error("typeError will be: " + doTypeChecks(newDef, keyValue, op));
+			typeError = doTypeChecks(newDef, keyValue, op);
+			i++;
+		}
+		return typeError;
+	}
+
   // String checks
   if (expectedType === String) {
     if (typeof keyValue !== "string") {

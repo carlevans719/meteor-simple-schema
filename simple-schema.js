@@ -4,7 +4,7 @@
 /* global Utility */
 
 var schemaDefinition = {
-  type: Match.Any,
+  type: Match.OneOf(Match.Any, [Match.Any]),
   label: Match.Optional(Match.OneOf(String, Function)),
   optional: Match.Optional(Match.OneOf(Boolean, Function)),
   min: Match.Optional(Match.OneOf(Number, Date, Function)),
@@ -29,6 +29,7 @@ var schemaDefinition = {
 
 //called by clean()
 var typeconvert = function(value, type) {
+	if ( type === Date || type === Array) console.log(value, type);
   var parsedDate;
 
   if (_.isArray(value) || (_.isObject(value) && !(value instanceof Date))) {
@@ -103,7 +104,7 @@ var expandSchema = function(schema) {
 
 var adjustArrayFields = function(schema) {
   _.each(schema, function(def, existingKey) {
-    if (_.isArray(def.type) || def.type === Array) {
+    if ((_.isArray(def.type) && def.type.length ===  1) || def.type === Array) {
       // Copy some options to array-item definition
       var itemKey = existingKey + ".$";
       if (!(itemKey in schema)) {

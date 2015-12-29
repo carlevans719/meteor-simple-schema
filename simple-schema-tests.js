@@ -441,6 +441,16 @@ var optionalInObject = new SimpleSchema({
   }
 });
 
+var multiType = new SimpleSchema({
+	name: {
+		type: String
+	},
+	validSince: {
+		type: [Date, Boolean],
+		defaultValue: false
+	}
+});
+
 /*
  * END SETUP FOR TESTS
  */
@@ -473,6 +483,37 @@ function validateNoClean(ss, doc, isModifier, isUpsert) {
 /*
  * BEGIN TESTS
  */
+
+ Tinytest.add("SimpleSchema - Basic Multiple Types", function(test) {
+	 var sc = validate(multiType, {
+		 name: "Foo Bar",
+		 validSince: new Date()
+	 });
+	 test.equal(sc.invalidKeys(), []);
+
+	 sc = validate(multiType, {
+		 name: "Foo Bar"
+	 });
+	 test.equal(sc.invalidKeys(), []);
+
+	 sc = validate(multiType, {
+		 name: "Foo Bar",
+		 validSince: true
+	 });
+	 test.equal(sc.invalidKeys(), []);
+
+	 sc = validate(multiType, {
+		 name: "Foo Bar",
+		 validSince: "invalid"
+	 });
+	 test.length(sc.invalidKeys(), 1);
+
+	 sc = validate(multiType, {
+		 name: "Foo Bar",
+		 validSince: [new Date()]
+	 });
+	 test.length(sc.invalidKeys(), 1);
+ });
 
 Tinytest.add("SimpleSchema - makeGeneric", function(test) {
   var generic = SimpleSchema._makeGeneric('foo.0.0.ab.c.123.4square.d.67e.f.g.1');
@@ -1949,7 +1990,7 @@ Tinytest.add("SimpleSchema - Minimum Checks - Insert", function(test) {
   test.length(sc.invalidKeys(), 1);
   /* NUMBER */
   sc = validate(ss, {
-    minMaxNumberExclusive: 20 
+    minMaxNumberExclusive: 20
   });
   test.length(sc.invalidKeys(), 1);
   sc = validate(ss, {
