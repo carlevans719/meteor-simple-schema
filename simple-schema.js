@@ -29,7 +29,6 @@ var schemaDefinition = {
 
 //called by clean()
 var typeconvert = function(value, type) {
-	if ( type === Date || type === Array) console.log(value, type);
   var parsedDate;
 
   if (_.isArray(value) || (_.isObject(value) && !(value instanceof Date))) {
@@ -89,7 +88,7 @@ var expandSchema = function(schema) {
       type = val.type[0];
       val.type = [Object];
     } else {
-      return;
+			return;
     }
     //add child schema definitions to parent schema
     _.each(type._schema, function(subVal, subKey) {
@@ -102,16 +101,30 @@ var expandSchema = function(schema) {
   return schema;
 };
 
+// var
+
 var adjustArrayFields = function(schema) {
   _.each(schema, function(def, existingKey) {
-    if ((_.isArray(def.type) && def.type.length ===  1) || def.type === Array) {
+		//  console.log({def:def, existingKey:existingKey});
+    if (_.isArray(def.type) || def.type === Array) {
       // Copy some options to array-item definition
       var itemKey = existingKey + ".$";
-      if (!(itemKey in schema)) {
+      if (!(itemKey in schema) && def.type.length === 1) {
         schema[itemKey] = {};
       }
       if (_.isArray(def.type)) {
-        schema[itemKey].type = def.type[0];
+				// console.log(def.type);
+				console.log(def.type, schema[itemKey]);
+				debugger;
+				if (def.type.length ===  1) {
+					console.log("setting schema[\'"+itemKey+"\'].type = " + def.type[0]);
+	        schema[itemKey].type = def.type[0];
+				// } else if ( def.type.length > 1) {
+				// 	console.log("setting schema[\'"+itemKey+"\'].type = " + def.type);
+				// 	schema[itemKey].type = def.type;
+				} else {
+					return;
+				}
       }
       if (def.label) {
         schema[itemKey].label = def.label;
@@ -455,6 +468,7 @@ SimpleSchema = function(schemas, options) {
   _.each(self._schema, function(definition, fieldName) {
     // Validate the field definition
     if (!Match.test(definition, schemaDefinition)) {
+			debugger;
       throw new Error('Invalid definition for ' + fieldName + ' field.');
     }
 
@@ -963,6 +977,11 @@ SimpleSchema.prototype.messageForError = function(type, key, def, value) {
 
   // We proceed even if we can't get a definition because it might be a keyNotInSchema error
   def = def || self.getDefinition(key, ['regEx', 'label', 'minCount', 'maxCount', 'min', 'max', 'type']) || {};
+
+	// // Adjust for arrays of types
+	// if (_.isArray(type)) {
+	// 	type = type.join(".");
+	// }
 
   // Adjust for complex types, currently only regEx,
   // where we might have regEx.1 meaning the second
