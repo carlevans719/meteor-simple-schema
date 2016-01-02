@@ -101,64 +101,157 @@ var expandSchema = function(schema) {
   return schema;
 };
 
-// var
+var simplifyNestedArrayFields = function(schema, def, existingKey, itemKey) {
+	// TODO: deal with [ [Date] ] (i.e. where the array length is 1 but there is a sub array w/length === 1)
+	// basically - just pull the inner array out
+
+	// Find out if ALL types are arrays themselves (or Array)
+	var anyNonArrays, anyArrays, anyArrayTypes, anyConstructors;
+	var existingType = [];
+	_.each(def.type, function(type) {
+		if ( _.isArray(type) || type === Array ) {
+			// Sub-arrays can only contain 1 element, so disallow things
+			// like `[ [ Boolean, String ] ]` and `[ [ [Boolean], [String] ] ]` and
+			// `[ Boolean, [Array] ]`
+			if ( type.length > 1 || type[0] === Array ) throw new Error('Invalid definition for ' + existingKey + '. Complex nested arrays are not supported');
+
+			if (type === Array) {
+				anyArrayTypes = true;
+			}
+			if (typeof type[0] === 'function') {
+				anyConstructors = true;
+			}
+
+			anyArrays = true;
+		} else {
+			if (typeof type === 'function') {
+				anyConstructors = true;
+			}
+
+			anyNonArrays = true;
+		}
+	});
+
+	// Insert the itemKey if it's missing
+	if ( anyArrays && !(itemKey in schema) ) {
+		schema[itemKey] = {};
+		// If this array only contains one element at the end of this function, then
+		// we say `schema[itemKey].type = schema[itemKey].type[0]`
+		schema[itemKey].type = [];
+	}
+
+	// All types are arrays (e.g. `[ [Date], [Boolean] ]`, or `[ [Date], Array ]` )
+	if ( anyArrays && !anyNonArrays ) {
+
+		// If we have something like [ Array, [Boolean] ] -- Match.any will match the bool
+		if ( anyArrayTypes ) {
+			schema[itemKey].type.push(MatchAany);
+		}
+
+		// Only add the primitives that are present
+		else {
+			_.each(def.type, function(type) {
+				if ( _.isArray(type) && type.length === 1 ) {
+					schema[itemKey].type.push(type[0]);
+				}
+			});
+		}
+
+		// If we have something like [ Array, [Date] ], then add the `Date` to the allowed types too
+		if ( anyConstructors ) {
+			// Push constructors in to the itemKey.type definition
+			_.each(def.type, function(type) {
+				if ( _.isArray(type) && typeof type[0] === 'function' ) {
+					schema[itemKey].type.push(type);
+				}
+			});
+		}
+	}
+
+	// Mixed bag of types, the schema[existingKey].type should be
+	// [Array, nonArrayType1, nonArrayType2...] and schema[itemKey].type
+	// should be either `[ ArrayType1, ArrayType2...]` or just `ArrayType1`
+	else if ( anyArrays && anyNonArrays ) {
+		_.each(def.type, function(type) {
+			if ( _.isArray(type) ) {
+				schema[itemKey].type.push(type[0]);
+			} else {
+				existingType.push(type);
+			}
+		});
+		schema[itemKey].optional = true;
+		schema[existingKey].type = existingType.length ? existingType : [Array];
+		if ( !anyArrayTypes ) schema[existingKey].type.push(Array);
+	}
+
+	if ( schema[existingKey].type.length === 1 ) schema[existingKey].type = schema[existingKey].type[0];
+	if ( schema[itemKey] && schema[itemKey].type.length === 1 ) schema[itemKey].type = schema[itemKey].type[0];
+};
 
 var adjustArrayFields = function(schema) {
   _.each(schema, function(def, existingKey) {
-		//  console.log({def:def, existingKey:existingKey});
+		var multiType;
+
     if (_.isArray(def.type) || def.type === Array) {
+
       // Copy some options to array-item definition
       var itemKey = existingKey + ".$";
+
       if (!(itemKey in schema) && def.type.length === 1) {
         schema[itemKey] = {};
       }
+
       if (_.isArray(def.type)) {
-				// console.log(def.type);
-				console.log(def.type, schema[itemKey]);
-				debugger;
-				if (def.type.length ===  1) {
-					console.log("setting schema[\'"+itemKey+"\'].type = " + def.type[0]);
+debugger;
+				if ( def.type.length ===  1 && !_.isArray(def.type[0]) ) {
 	        schema[itemKey].type = def.type[0];
-				// } else if ( def.type.length > 1) {
-				// 	console.log("setting schema[\'"+itemKey+"\'].type = " + def.type);
-				// 	schema[itemKey].type = def.type;
+				} else if ( def.type.length > 1 ) {
+					multiType = true;
+					simplifyNestedArrayFields(schema, def, existingKey, itemKey);
 				} else {
 					return;
 				}
+
       }
-      if (def.label) {
-        schema[itemKey].label = def.label;
-      }
-      schema[itemKey].optional = true;
-      if (typeof def.min !== "undefined") {
-        schema[itemKey].min = def.min;
-      }
-      if (typeof def.max !== "undefined") {
-        schema[itemKey].max = def.max;
-      }
-      if (typeof def.allowedValues !== "undefined") {
-        schema[itemKey].allowedValues = def.allowedValues;
-      }
-      if (typeof def.decimal !== "undefined") {
-        schema[itemKey].decimal = def.decimal;
-      }
-      if (typeof def.exclusiveMax !== "undefined") {
-        schema[itemKey].exclusiveMax = def.exclusiveMax;
-      }
-      if (typeof def.exclusiveMin !== "undefined") {
-        schema[itemKey].exclusiveMin = def.exclusiveMin;
-      }
-      if (typeof def.regEx !== "undefined") {
-        schema[itemKey].regEx = def.regEx;
-      }
-      if (typeof def.blackbox !== "undefined") {
-        schema[itemKey].blackbox = def.blackbox;
-      }
-      // Remove copied options and adjust type
-      def.type = Array;
-      _.each(['min', 'max', 'allowedValues', 'decimal', 'exclusiveMax', 'exclusiveMin', 'regEx', 'blackbox'], function(k) {
-        Utility.deleteIfPresent(def, k);
-      });
+
+			if (schema[itemKey]) {
+
+	      if (def.label) {
+	        schema[itemKey].label = def.label;
+	      }
+	      schema[itemKey].optional = true;
+	      if (typeof def.min !== "undefined") {
+	        schema[itemKey].min = def.min;
+	      }
+	      if (typeof def.max !== "undefined") {
+	        schema[itemKey].max = def.max;
+	      }
+	      if (typeof def.allowedValues !== "undefined") {
+	        schema[itemKey].allowedValues = def.allowedValues;
+	      }
+	      if (typeof def.decimal !== "undefined") {
+	        schema[itemKey].decimal = def.decimal;
+	      }
+	      if (typeof def.exclusiveMax !== "undefined") {
+	        schema[itemKey].exclusiveMax = def.exclusiveMax;
+	      }
+	      if (typeof def.exclusiveMin !== "undefined") {
+	        schema[itemKey].exclusiveMin = def.exclusiveMin;
+	      }
+	      if (typeof def.regEx !== "undefined") {
+	        schema[itemKey].regEx = def.regEx;
+	      }
+	      if (typeof def.blackbox !== "undefined") {
+	        schema[itemKey].blackbox = def.blackbox;
+	      }
+			}
+			if ( !multiType ) {
+	      // Remove copied options and adjust type
+	      def.type = Array;
+	      _.each(['min', 'max', 'allowedValues', 'decimal', 'exclusiveMax', 'exclusiveMin', 'regEx', 'blackbox'], function(k) {
+	        Utility.deleteIfPresent(def, k);
+	      });
+			}
     }
   });
 };
@@ -172,7 +265,7 @@ var adjustArrayFields = function(schema) {
  */
 var addImplicitKeys = function(schema) {
   var arrayKeysToAdd = [], objectKeysToAdd = [], newKey, key, i, ln;
-
+debugger;
   // Pass 1 (objects)
   _.each(schema, function(def, existingKey) {
     var pos = existingKey.indexOf(".");
@@ -217,7 +310,7 @@ var addImplicitKeys = function(schema) {
 };
 
 var mergeSchemas = function(schemas) {
-
+debugger;
   // Merge all provided schema definitions.
   // This is effectively a shallow clone of each object, too,
   // which is what we want since we are going to manipulate it.

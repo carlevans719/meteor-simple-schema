@@ -565,7 +565,7 @@ if (Meteor.isClient) {
 		name: "Foo Bar",
 		validUntil: []
 	});
-	test.length(sc.invalidKeys(), 1);
+	test.length(sc.invalidKeys(), 0);
 
 	sc = validate(complexMultiType, {
 		name: "Foo Bar",

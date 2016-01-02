@@ -42,8 +42,7 @@ SimpleSchemaValidationContext.prototype.validate = function simpleSchemaValidati
   }
 
   var invalidKeys = doValidation(doc, options.modifier, options.upsert, null, self._simpleSchema, options.extendedCustomContext);
-	debugger;
-_.each(invalidKeys, function(invalidKey){console.log({name:invalidKey.name, type: invalidKey.type});});
+	_.each(invalidKeys, function(invalidKey){console.log({name:invalidKey.name, type: invalidKey.type});});
   //now update self._invalidKeys and dependencies
 
   //note any currently invalid keys so that we can mark them as changed
@@ -160,7 +159,7 @@ SimpleSchemaValidationContext.prototype._markKeysChanged = function simpleSchema
 SimpleSchemaValidationContext.prototype._getInvalidKeyObject = function simpleSchemaValidationContextGetInvalidKeyObject(name, genericName) {
   var self = this;
   genericName = genericName || SimpleSchema._makeGeneric(name);
-console.log(name);
+
   var errorObj = _.findWhere(self._invalidKeys, {name: name});
   if (!errorObj) {
     errorObj = _.findWhere(self._invalidKeys, {name: genericName});
@@ -184,7 +183,7 @@ SimpleSchemaValidationContext.prototype.keyErrorMessage = function simpleSchemaV
   var self = this, genericName = SimpleSchema._makeGeneric(name);
   self._deps[genericName] && self._deps[genericName].depend();
   var errorObj = self._getInvalidKeyObject(name, genericName);
-debugger;
+
   if (!errorObj) {
     return "";
   }

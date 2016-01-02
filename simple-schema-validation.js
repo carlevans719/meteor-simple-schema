@@ -35,6 +35,9 @@ function doTypeChecks(def, keyValue, op) {
 
 	else {
 		typeError.push(performTypeChecks( def ));
+		if ( typeError.length === 1 && typeError[0] === undefined ) {
+			typeError = typeError[0];
+		}
 		// console.log(typeError, keyValue);
 		return typeError;
 	}
@@ -150,7 +153,7 @@ doValidation1 = function doValidation1(obj, isModifier, isUpsert, keyToValidate,
 
   // Validation function called for each affected key
   function validate(val, affectedKey, affectedKeyGeneric, def, op, skipRequiredCheck, isInArrayItemObject, isInSubObject) {
-
+debugger;
     // Get the schema for this key, marking invalid if there isn't one.
     if (!def) {
       invalidKeys.push(Utility.errorObject("keyNotInSchema", affectedKey, val, def, ss));
